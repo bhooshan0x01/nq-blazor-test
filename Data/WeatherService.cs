@@ -21,12 +21,8 @@ namespace nq_blazor_test.Data
                     Date = DateTime.Now.AddDays(rng.Next(-5, 5)),
                     TemperatureC = rng.Next(-30, 45),
                     Summary = summary,
-                    // Severity = rng.Next(1, 11)
                 });
             }
-            // Add edge cases
-            // data.Add(new WeatherCondition { Location = "Testville", Date = DateTime.Now, TemperatureC = -40, Summary = WeatherType.Freezing, Severity = 10 });
-            // data.Add(new WeatherCondition { Location = "Edge City", Date = DateTime.Now, TemperatureC = 50, Summary = WeatherType.Scorching, Severity = 10 });
             data.Add(new WeatherCondition { Location = "Testville", Date = DateTime.Now, TemperatureC = -40, Summary = WeatherType.Freezing});
             data.Add(new WeatherCondition { Location = "Edge City", Date = DateTime.Now, TemperatureC = 50, Summary = WeatherType.Scorching});
 

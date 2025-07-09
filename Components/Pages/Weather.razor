@@ -21,7 +21,6 @@ else
                 <th>Date</th>
                 <th aria-label="Temperature in Celsius">Temp. (C)</th>
                 <th>Summary</th>
-                @* <th>Severity</th> *@
             </tr>
         </thead>
         <tbody>
@@ -33,7 +32,6 @@ else
                     <td>@condition.Date.ToShortDateString()</td>
                     <td>@condition.TemperatureC</td>
                     <td class="@rowClass">@condition.Summary</td>
-                    @* <td>@condition.Severity</td> *@
                 </tr>
             }
         </tbody>
