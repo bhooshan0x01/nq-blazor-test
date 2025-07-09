@@ -1,4 +1,5 @@
 ﻿@page "/weather"
+@rendermode InteractiveServer
 @using nq_blazor_test.Models
 @using nq_blazor_test.Data
 
@@ -6,9 +7,9 @@
 
 <h1>Weather</h1>
 
-<p>This component demonstrates showing data.</p>
+<p>This component demonstrates showing weather data with critical data highlighting, sorting, and pagination.</p>
 
-@if (weatherData == null)
+@if (pagedWeatherData == null)
 {
     <p><em>Loading...</em></p>
 }
@@ -17,15 +18,15 @@ else
     <table class="table weather-table">
         <thead>
             <tr>
-                <th>Location</th>
-                <th>Date</th>
-                <th aria-label="Temperature in Celsius">Temp. (C)</th>
-                <th>Summary</th>
-                <th>Severity</th>
+                <th><button type="button" class="table-sort-btn" @onclick="() => SortByColumn(nameof(WeatherCondition.Location))">Location @SortIndicator(nameof(WeatherCondition.Location))</button></th>
+                <th><button type="button" class="table-sort-btn" @onclick="() => SortByColumn(nameof(WeatherCondition.Date))">Date @SortIndicator(nameof(WeatherCondition.Date))</button></th>
+                <th><button type="button" class="table-sort-btn" @onclick="() => SortByColumn(nameof(WeatherCondition.TemperatureC))">Temp. (C) @SortIndicator(nameof(WeatherCondition.TemperatureC))</button></th>
+                <th><button type="button" class="table-sort-btn" @onclick="() => SortByColumn(nameof(WeatherCondition.Summary))">Summary @SortIndicator(nameof(WeatherCondition.Summary))</button></th>
+                <th><button type="button" class="table-sort-btn" @onclick="() => SortByColumn(nameof(WeatherCondition.Severity))">Severity @SortIndicator(nameof(WeatherCondition.Severity))</button></th>
             </tr>
         </thead>
         <tbody>
-            @foreach (var condition in weatherData)
+            @foreach (var condition in pagedWeatherData)
             {
                 var rowClass = condition.IsDangerous ? "dangerous-weather" : condition.IsHarsh ? "harsh-weather" : "";
                 <tr class="@rowClass">
@@ -38,16 +39,88 @@ else
             }
         </tbody>
     </table>
+    <div class="pagination-controls">
+        <button class="btn btn-secondary btn-sm" @onclick="PreviousPage" disabled="@(currentPage == 1)">Previous</button>
+        <span> Page @currentPage of @totalPages </span>
+        <button class="btn btn-secondary btn-sm" @onclick="NextPage" disabled="@(currentPage == totalPages)">Next</button>
+    </div>
 }
 
 @code {
     private List<WeatherCondition>? weatherData;
+    private List<WeatherCondition>? pagedWeatherData;
     private WeatherService weatherService = new WeatherService();
+
+    private int currentPage = 1;
+    private int pageSize = 10;
+    private int totalPages = 1;
+    private string sortColumn = nameof(WeatherCondition.Summary);
+    private bool sortAscending = true;
 
     protected override void OnInitialized()
     {
-        // Load test data (scalable, edge cases included)
         weatherData = weatherService.GetWeatherData(50);
+        ApplySortingAndPaging();
+    }
+
+    private void SortByColumn(string column)
+    {
+        System.Diagnostics.Debug.WriteLine($"SortByColumn called: {column}");
+        if (sortColumn == column)
+        {
+            sortAscending = !sortAscending;
+        }
+        else
+        {
+            sortColumn = column;
+            sortAscending = true;
+        }
+        currentPage = 1;
+        ApplySortingAndPaging();
+    }
+
+    private void ApplySortingAndPaging()
+    {
+        if (weatherData == null) return;
+        IEnumerable<WeatherCondition> sorted = weatherData;
+        sorted = sortColumn switch
+        {
+            nameof(WeatherCondition.Location) => sortAscending ? sorted.OrderBy(x => x.Location) : sorted.OrderByDescending(x => x.Location),
+            nameof(WeatherCondition.Date) => sortAscending ? sorted.OrderBy(x => x.Date) : sorted.OrderByDescending(x => x.Date),
+            nameof(WeatherCondition.TemperatureC) => sortAscending ? sorted.OrderBy(x => x.TemperatureC) : sorted.OrderByDescending(x => x.TemperatureC),
+            nameof(WeatherCondition.Summary) => sortAscending ? sorted.OrderBy(x => x.Summary) : sorted.OrderByDescending(x => x.Summary),
+            nameof(WeatherCondition.Severity) => sortAscending ? sorted.OrderBy(x => x.Severity) : sorted.OrderByDescending(x => x.Severity),
+            _ => sorted
+        };
+        totalPages = (int)Math.Ceiling(sorted.Count() / (double)pageSize);
+        if (currentPage > totalPages) currentPage = totalPages > 0 ? totalPages : 1;
+        pagedWeatherData = sorted.Skip((currentPage - 1) * pageSize).Take(pageSize).ToList();
+    }
+
+    private void PreviousPage()
+    {
+        System.Diagnostics.Debug.WriteLine($"PreviousPage called: {currentPage}");
+        if (currentPage > 1)
+        {
+            currentPage--;
+            ApplySortingAndPaging();
+        }
+    }
+
+    private void NextPage()
+    {
+        System.Diagnostics.Debug.WriteLine($"NextPage called: {currentPage}");
+        if (currentPage < totalPages)
+        {
+            currentPage++;
+            ApplySortingAndPaging();
+        }
+    }
+
+    private string SortIndicator(string column)
+    {
+        if (sortColumn != column) return string.Empty;
+        return sortAscending ? "▲" : "▼";
     }
 
     private string GetWeatherEmoji(WeatherType summary)
@@ -64,19 +137,6 @@ else
             WeatherType.Hot => "🌡️",
             WeatherType.Cold => "❄️",
             _ => "🌡️"
-        };
-    }
-
-    private string GetSeverityEmoji(int severity)
-    {
-        return severity switch
-        {
-            1 => "🟢", // No risk
-            2 => "🟡", // Low risk
-            3 => "🟠", // Moderate risk
-            4 => "🔴", // High risk
-            5 => "🚨", // Extreme risk
-            _ => ""
         };
     }
 }
