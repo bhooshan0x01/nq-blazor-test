@@ -9,6 +9,12 @@
 
 <p>This component demonstrates showing weather data with critical data highlighting, sorting, and pagination.</p>
 
+<select class="form-select mb-3" style="width: 220px;" @onchange="OnRoleChanged">
+    <option value="Default">Default User</option>
+    <option value="Firefighter">Firefighter</option>
+    <option value="SnowGroomer">Snow Groomer</option>
+</select>
+
 @if (pagedWeatherData == null)
 {
     <p><em>Loading...</em></p>
@@ -23,18 +29,38 @@ else
                 <th><button type="button" class="table-sort-btn" @onclick="() => SortByColumn(nameof(WeatherCondition.TemperatureC))">Temp. (C) @SortIndicator(nameof(WeatherCondition.TemperatureC))</button></th>
                 <th><button type="button" class="table-sort-btn" @onclick="() => SortByColumn(nameof(WeatherCondition.Summary))">Summary @SortIndicator(nameof(WeatherCondition.Summary))</button></th>
                 <th><button type="button" class="table-sort-btn" @onclick="() => SortByColumn(nameof(WeatherCondition.Severity))">Severity @SortIndicator(nameof(WeatherCondition.Severity))</button></th>
+                @if (currentRole == "Firefighter" || currentRole == "SnowGroomer")
+                {
+                    <th>Review</th>
+                }
             </tr>
         </thead>
         <tbody>
             @foreach (var condition in pagedWeatherData)
             {
-                var rowClass = condition.IsDangerous ? "dangerous-weather" : condition.IsHarsh ? "harsh-weather" : "";
-                <tr class="@rowClass">
+                var rowClass = GetRowClass(condition);
+                var isRelevant = IsRelevantForRole(condition);
+                var isDeemphasized = IsDeemphasizedForRole(condition);
+                var reviewed = reviewedConditions.Contains(GetConditionKey(condition));
+                <tr class="@rowClass @(isDeemphasized ? "deemphasized-row" : "")">
                     <td>@condition.Location</td>
                     <td>@condition.Date.ToShortDateString()</td>
                     <td>@GetWeatherEmoji(condition.Summary) @condition.TemperatureC</td>
                     <td class="@rowClass">@condition.Summary</td>
                     <td>@condition.SeverityEmoji @condition.SeverityLabel</td>
+                    @if (currentRole == "Firefighter" || currentRole == "SnowGroomer")
+                    {
+                        <td>
+                            @if (isRelevant && !reviewed)
+                            {
+                                <button class="btn btn-outline-success btn-sm" @onclick="() => ReviewCondition(condition)">Review</button>
+                            }
+                            else if (isRelevant && reviewed)
+                            {
+                                <span class="text-success">Reviewed &#10003;</span>
+                            }
+                        </td>
+                    }
                 </tr>
             }
         </tbody>
@@ -54,8 +80,16 @@ else
     private int currentPage = 1;
     private int pageSize = 10;
     private int totalPages = 1;
-    private string sortColumn = nameof(WeatherCondition.Summary);
+    private string sortColumn = nameof(WeatherCondition.Location);
     private bool sortAscending = true;
+
+    private string currentRole = "Default";
+    private HashSet<string> reviewedConditions = new();
+
+    private string GetConditionKey(WeatherCondition condition)
+    {
+        return $"{condition.Location}|{condition.Date:yyyy-MM-dd}|{condition.Summary}";
+    }
 
     protected override void OnInitialized()
     {
@@ -92,6 +126,13 @@ else
             nameof(WeatherCondition.Severity) => sortAscending ? sorted.OrderBy(x => x.Severity) : sorted.OrderByDescending(x => x.Severity),
             _ => sorted
         };
+        // If Firefighter or Snow Groomer, show (on top) records with Review button enabled, then the rest
+        if (currentRole == "Firefighter" || currentRole == "SnowGroomer")
+        {
+            sorted = sorted.OrderByDescending(x => IsRelevantForRole(x) && !reviewedConditions.Contains(GetConditionKey(x)))
+                           .ThenByDescending(x => reviewedConditions.Contains(GetConditionKey(x)))
+                           .ThenBy(x => 0); // preserve previous sort
+        }
         totalPages = (int)Math.Ceiling(sorted.Count() / (double)pageSize);
         if (currentPage > totalPages) currentPage = totalPages > 0 ? totalPages : 1;
         pagedWeatherData = sorted.Skip((currentPage - 1) * pageSize).Take(pageSize).ToList();
@@ -138,5 +179,60 @@ else
             WeatherType.Cold => "❄️",
             _ => "🌡️"
         };
+    }
+
+    private void OnRoleChanged(ChangeEventArgs e)
+    {
+        currentRole = e.Value?.ToString() ?? "Default";
+        ApplySortingAndPaging();
+    }
+
+    private void ReviewCondition(WeatherCondition condition)
+    {
+        reviewedConditions.Add(GetConditionKey(condition));
+    }
+
+    private bool IsRelevantForRole(WeatherCondition condition)
+    {
+        return currentRole switch
+        {
+            "Firefighter" => condition.Summary == WeatherType.Scorching,
+            "SnowGroomer" => condition.Summary == WeatherType.Freezing || condition.Summary == WeatherType.Bracing,
+            _ => false // Default user cannot review
+        };
+    }
+
+    private bool IsDeemphasizedForRole(WeatherCondition condition)
+    {
+        return currentRole switch
+        {
+            "Firefighter" => condition.Summary == WeatherType.Freezing || condition.Summary == WeatherType.Bracing || condition.Summary == WeatherType.Cold || condition.Summary == WeatherType.Cool,
+            "SnowGroomer" => condition.Summary == WeatherType.Sweltering || condition.Summary == WeatherType.Scorching || condition.Summary == WeatherType.Hot || condition.Summary == WeatherType.Warm,
+            _ => false
+        };
+    }
+
+    private string GetRowClass(WeatherCondition condition)
+    {
+        if (currentRole == "Default")
+        {
+            if (condition.IsDangerous) return "dangerous-weather";
+            if (condition.IsHarsh) return "harsh-weather";
+
+            return string.Empty;
+        }
+        if (currentRole == "Firefighter")
+        {
+            if (condition.Summary == WeatherType.Scorching) return "dangerous-weather";
+            if (IsDeemphasizedForRole(condition)) return "deemphasized-row";
+            return string.Empty;
+        }
+        if (currentRole == "SnowGroomer")
+        {
+            if (condition.Summary == WeatherType.Freezing || condition.Summary == WeatherType.Bracing) return "dangerous-weather";
+            if (IsDeemphasizedForRole(condition)) return "deemphasized-row";
+            return string.Empty;
+        }
+        return string.Empty;
     }
 }
