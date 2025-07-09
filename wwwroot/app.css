@@ -101,3 +101,9 @@ h1:focus {
   margin: 0;
   outline: none;
 }
+
+.deemphasized-row {
+  opacity: 0.5;
+  color: #888 !important;
+  font-style: italic;
+}
