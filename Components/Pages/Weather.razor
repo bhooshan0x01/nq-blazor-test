@@ -21,6 +21,7 @@ else
                 <th>Date</th>
                 <th aria-label="Temperature in Celsius">Temp. (C)</th>
                 <th>Summary</th>
+                <th>Severity</th>
             </tr>
         </thead>
         <tbody>
@@ -30,8 +31,9 @@ else
                 <tr class="@rowClass">
                     <td>@condition.Location</td>
                     <td>@condition.Date.ToShortDateString()</td>
-                    <td>@condition.TemperatureC</td>
+                    <td>@GetWeatherEmoji(condition.Summary) @condition.TemperatureC</td>
                     <td class="@rowClass">@condition.Summary</td>
+                    <td>@condition.SeverityEmoji @condition.SeverityLabel</td>
                 </tr>
             }
         </tbody>
@@ -46,5 +48,35 @@ else
     {
         // Load test data (scalable, edge cases included)
         weatherData = weatherService.GetWeatherData(50);
+    }
+
+    private string GetWeatherEmoji(WeatherType summary)
+    {
+        return summary switch
+        {
+            WeatherType.Freezing => "🥶",
+            WeatherType.Bracing => "🧊",
+            WeatherType.Sweltering => "🥵",
+            WeatherType.Scorching => "🔥",
+            WeatherType.Mild => "🌤️",
+            WeatherType.Warm => "☀️",
+            WeatherType.Cool => "🌬️",
+            WeatherType.Hot => "🌡️",
+            WeatherType.Cold => "❄️",
+            _ => "🌡️"
+        };
+    }
+
+    private string GetSeverityEmoji(int severity)
+    {
+        return severity switch
+        {
+            1 => "🟢", // No risk
+            2 => "🟡", // Low risk
+            3 => "🟠", // Moderate risk
+            4 => "🔴", // High risk
+            5 => "🚨", // Extreme risk
+            _ => ""
+        };
     }
 }
